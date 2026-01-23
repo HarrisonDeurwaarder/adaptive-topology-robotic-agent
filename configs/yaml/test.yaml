@@ -1,7 +1,0 @@
-env:
-scene:
-rl:
-  ppo:
-    discount_factor: 0
-    gae_decay: 0
-event:

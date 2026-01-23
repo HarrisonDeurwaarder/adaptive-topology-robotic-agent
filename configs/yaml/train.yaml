@@ -1,0 +1,39 @@
+env:
+  decimation: 1
+  episode_length: 5.0 # [sec]
+  action_space: 7
+  obs_space: 17
+
+scene:
+  num_envs: 9
+  env_spacing: 2.0
+  replicate_physics: True
+  clone_in_fabric: True
+  light:
+    intensity: 3000
+    color: [0.75, 0.75, 0.75]
+  cube:
+    size: [0.2, 0.2, 0.2] # [m]
+    rest_offset: 0.0
+    contact_offset: 0.001
+    poissons_ratio: 0.4
+    youngs_modulus: 1e5
+    diffuse_color: [0.5, 0.5, 0.5]
+    pos: [0.0, 0.0, 1.0]
+
+sim:
+  dt: 0.01
+  render_interval: 2
+
+rl:
+  epochs: 10
+  iterations: 5
+  batch_size: 64
+  rollout_length: 1028
+  ppo:
+    policy_lr: 1e-3
+    value_lr: 1e-3
+    value_coef: 0.5
+    entropy_coef: 0.005
+    discount_factor: 0
+    gae_decay: 0
