@@ -9,14 +9,23 @@ class Rollout(Dataset):
     """
     def __init__(
         self,
-        initial_state: torch.Tensor,
+        initial_obs: torch.Tensor,
+        initial_value_out: torch.Tensor,
+        device: torch.device,
     ) -> None:
         super().__init__()
-        # Define objects
-        self.states = torch.tensor([initial_state])
-        self.actions = torch.empty()
-        self.distributions = torch.empty()
-        self.rewards = torch.empty()
+        # Define collectables
+        self.obs: torch.Tensor = torch.tensor(
+            [initial_obs], device=device,
+        )
+        self.actions: torch.Tensor = torch.empty(device=device,)
+        self.means: torch.Tensor = torch.empty(device=device,)
+        self.variances: torch.Tensor = torch.empty(device=device,)
+        self.rewards: torch.Tensor = torch.empty(device=device,)
+        self.value_outs: torch.Tensor = torch.empty(
+            [initial_value_out], device=device,
+        )
+        self.dones: torch.Tensor = torch.empty(device=device,)
         
         
     def __len__(self,) -> int:
@@ -26,12 +35,61 @@ class Rollout(Dataset):
     def __getitem__(
         self,
         idx: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.distributions.Normal, float]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Return transition tuple
         return (
-            self.states[idx],
-            self.states[idx+1],
+            self.obs[idx],
             self.actions[idx],
-            self.distributions[idx],
+            self.means[idx],
+            self.variances[idx],
             self.rewards[idx],
+            self.value_outs[idx],
         )
+    
+    
+    def get_horizon(self,) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Return the condensed transition required for advantage computation
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: A tuple containing:
+                - Rewards
+                - Dones
+                - Value outs
+        """
+        return  (
+            self.rewards,
+            self.dones,
+            self.value_outs,
+        )
+        
+    
+    def add(
+        self,
+        obs: torch.Tensor,
+        actions: torch.Tensor,
+        means: torch.Tensor,
+        variances: torch.Tensor,
+        rewards: torch.Tensor,
+        value_out: torch.Tensor,
+        dones: torch.Tensor,
+    ) -> None:
+        """
+        Add a transition to the rollout
+
+        Args:
+            obs (torch.Tensor): Policy observations
+            actions (torch.Tensor): Sampled action
+            means (torch.Tensor): Policy output means
+            variances (torch.Tensor): Policy output variances
+            rewards (torch.Tensor): Netted rewards
+            value_out (torch.Tensor): Predicted value of the policy
+            dones (torch.Tensor): Boolean completion flags
+        """
+        self.obs = torch.concat(self.obs, obs.unsqueeze(0), dim=0)
+        self.actions = torch.concat(self.actions, actions.unsqueeze(0), dim=0)
+        self.means = torch.concat(self.means, means.unsqueeze(0), dim=0)
+        self.variances = torch.concat(self.variances, variances.unsqueeze(0), dim=0)
+        self.rewards = torch.concat(self.rewards, rewards.unsqueeze(0), dim=0)
+        self.value_outs = torch.concat(self.value_outs, value_out.unsqueeze(0), dim=0)
+        self.dones = torch.concat(self.dones, dones.unsqueeze(0), dim=0)

@@ -7,14 +7,41 @@ from utils.config import config
 
 class Actor(nn.Module):
     """
-    Abstract policy function for PPO
+    Policy function for PPO
     """
+    def __init__(self,) -> None:
+        super().__init__()
+        self.net: nn.Module = nn.Sequential(
+            nn.Linear(17, 128),
+            nn.Linear(128, 128),
+            nn.Linear(128, 14),
+        )
+        
+        
+    def forward(
+        self,
+        obs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute the action distribution for the policy
+
+        Args:
+            obs (torch.Tensor): Observations
+
+        Returns:
+            torch.Tensor: Distribution parameters
+        """
+        out = self.net(obs,)
+        # Split last dimension into mean/logvar
+        return out[..., 0], torch.exp(out[..., 1])
+        
+    
     @classmethod
     def gae(
         cls,
         rewards: torch.Tensor,
         dones: torch.Tensor,
-        critic_out: torch.Tensor,
+        value_outs: torch.Tensor,
     ) -> torch.Tensor:
         """
         Computes GAE-derived advantages
@@ -22,13 +49,13 @@ class Actor(nn.Module):
         Args:
             rewards (torch.Tensor): Rewards at every step
             dones (torch.Tensor): Episode termination flags at every step
-            critic_out (torch.Tensor): Predicted values of the policy
+            value_outs (torch.Tensor): Predicted values of the policy
 
         Returns:
             torch.Tensor: GAE advantages
         """
         # Compute TD residuals
-        td_residuals: torch.Tensor = rewards + critic_out[1:] * config["rl"]["ppo"]["discount_factor"] - critic_out[:-1]
+        td_residuals: torch.Tensor = rewards + value_outs[1:, ...] * config["rl"]["ppo"]["discount_factor"] - value_outs[:-1, ...]
         # Compute advantages
         advantages: torch.Tensor = torch.zeros_like(rewards)
         for t in reversed(range(td_residuals.size(-1) - 1)):
@@ -55,7 +82,7 @@ class Actor(nn.Module):
             advantages (torch.Tensor): GAE advantages
 
         Returns:
-            torch.Tensor: Policy objective
+            tuple[torch.Tensor, torch.Tensor]: a tuple containing the distribution parameters
         """
         # Compute policy ratio of selected action
         policy_ratio: torch.Tensor = torch.exp(policy_dist.log_prob(actions) - old_policy_dist.log_prob(actions))
@@ -69,17 +96,44 @@ class Actor(nn.Module):
             ),
         )
         # Final loss includes entropy
-        return torch.mean(policy_objecive) + policy_dist.entropy()
+        return policy_objecive
     
     
 class Critic(nn.Module):
     """
-    Abstract value function for PPO
+    Value function for PPO
     """
+    def __init__(self,) -> None:
+        super().__init__()
+        self.net: nn.Module = nn.Sequential(
+            nn.Linear(17, 128),
+            nn.Linear(128, 128),
+            nn.Linear(128, 1),
+        )
+        
+        
+    def forward(
+        self,
+        obs: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute the expected value for the policy
+
+        Args:
+            obs (torch.Tensor): Observations
+
+        Returns:
+            torch.Tensor: Expected value
+        """
+        out: torch.Tensor = self.net(obs,)
+        # Split last dimension into mean/logvar
+        return out[..., 0], torch.exp(out[..., 1])
+    
+    
     @classmethod
     def value_objective(
-        critic_out: torch.Tensor,
-        old_critic_out: torch.Tensor,
+        value_outs: torch.Tensor,
+        old_value_outs: torch.Tensor,
         advantages: torch.Tensor,
     ) -> torch.Tensor:
         """
@@ -94,6 +148,6 @@ class Critic(nn.Module):
             torch.Tensor: Value objective
         """
         return F.mse_loss(
-            critic_out,
-            advantages + old_critic_out,
+            value_outs,
+            (advantages + old_value_outs).detach(),
         )
