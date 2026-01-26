@@ -1,9 +1,11 @@
 import torch
+import torch.nn.functional as F
 from typing import Any, Sequence
 
 from isaaclab.envs import DirectRLEnvCfg, DirectRLEnv
 from isaaclab.utils import configclass
 from isaaclab.sim import SimulationCfg
+from isaaclab.utils.math import quat_apply
 
 from configs.python.scene_cfg import SceneCfg
 from configs.python.env_cfg import EnvironmentCfg
@@ -82,6 +84,12 @@ class Environment(DirectRLEnv):
         inv_dist: torch.Tensor = 1.0 / torch.sqrt(
             torch.sum(torch.square(ee_pos - cube_pos), dim=1)
         )
+        # Compute orientation and target orientation of ee
+        ee_quat: torch.Tensor = self.robot.data.body_quat_w[:, self.ee_idx]
+        local_forward: torch.Tensor = torch.tensor([1.0, 0.0, 0.0], device=self.sim.device,).repeat((self.num_envs, 1),)
+        ee_orient: torch.Tensor = F.normalize(quat_apply(ee_quat, local_forward,), dim=1,) # Quaternion applied to a unit vector should result in a unit vector, but floating-point errors can accumulate
+        targ_orient: torch.Tensor = F.normalize(cube_pos - ee_pos, dim=1,)
+        orient_alignment: torch.Tensor = torch.sum(ee_orient * targ_orient, dim=1,)
         # Extract height of cube
         dist_from_plane: torch.Tensor = cube_pos[:, 2]
         # Apply sparse bonus if height exceeds threshold
@@ -91,7 +99,7 @@ class Environment(DirectRLEnv):
         episode_length: torch.Tensor = self.episode_length_buf
         # Compute mag of ee velocity
         ee_vel_mag: torch.Tensor = torch.linalg.vector_norm(self.robot.data.joint_vel, dim=1)
-        return config["env"]["rewards"]["inverse_dist_coef"] * inv_dist + config["env"]["rewards"]["cube_height_coef"] * dist_from_plane + config["env"]["rewards"]["sparse_height_bonus_coef"] * is_above_threshold + config["env"]["rewards"]["passive_penalty_coef"] * episode_length + config["env"]["rewards"]["ee_vel_penalty_coef"] * ee_vel_mag
+        return config["env"]["rewards"]["inverse_dist_coef"] * inv_dist + config["env"]["rewards"]["cube_height_coef"] * dist_from_plane + config["env"]["rewards"]["sparse_height_bonus_coef"] * is_above_threshold + config["env"]["rewards"]["passive_penalty_coef"] * episode_length + config["env"]["rewards"]["ee_vel_penalty_coef"] * ee_vel_mag + config["env"]["rewards"]["orient_alignment_coef"] * orient_alignment
         
         
     def _get_dones(self,) -> tuple:

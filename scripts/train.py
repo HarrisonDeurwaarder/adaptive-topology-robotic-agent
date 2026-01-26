@@ -17,7 +17,7 @@ load_config("configs\\yaml\\train.yaml")
 import isaaclab.sim as sim_utils
 from isaaclab.scene import InteractiveScene
 from isaaclab.assets import Articulation
-\
+
 from sim.environment import Environment
 
 from utils.config import config

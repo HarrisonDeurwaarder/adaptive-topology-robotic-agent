@@ -6,6 +6,7 @@ env:
   rewards:
     sparse_height_bonus_threshold: 0.30
     inverse_dist_coef: 1.0
+    orient_alignment_coef: 2.5
     cube_height_coef: 5.0
     sparse_height_bonus_coef: 20.0
     passive_penalty_coef: -0.01
