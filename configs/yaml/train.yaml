@@ -1,8 +1,15 @@
 env:
   decimation: 1
-  episode_length: 5.0 # [sec]
+  episode_length: 3.0 # seconds
   action_space: 7
   obs_space: 18
+  rewards:
+    sparse_height_bonus_threshold: 0.30
+    inverse_dist_coef: 1.0
+    cube_height_coef: 5.0
+    sparse_height_bonus_coef: 20.0
+    passive_penalty_coef: -0.01
+    ee_vel_penalty_coef: -0.0
 
 scene:
   num_envs: 1024
@@ -13,9 +20,9 @@ scene:
     intensity: 3000
     color: [0.75, 0.75, 0.75]
   cube:
-    size: [0.2, 0.2, 0.2] # [m]
+    size: [0.07, 0.07, 0.07] # [m]
     diffuse_color: [1.0, 0.0, 0.0]
-    pos: [0.0, 1.0, 0.0]
+    pos: [0.4, 0.0, 0.1]
 
 sim:
   dt: 0.01
@@ -23,12 +30,12 @@ sim:
 
 rl:
   epochs: 10
-  iterations: 20
-  batch_size: 64
-  rollout_length: 128
+  iterations: 100
+  batch_size: 8
+  rollout_length: 256
   ppo:
-    log_var_min: -20.0
-    log_var_max: 2.0
+    log_std_min: -20.0
+    log_std_max: 2.0
     policy_lr: 0.001
     value_lr: 0.001
     value_coef: 0.5

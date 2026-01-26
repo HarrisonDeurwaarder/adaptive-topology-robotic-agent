@@ -34,10 +34,12 @@ class Actor(nn.Module):
             torch.Tensor: Distribution parameters
         """
         out = self.net(obs,)
-        # Split last dimension into mean/logvar
+        # Split last dimension into mean/logstd
         return (
-            out[..., 0:9], # mean
-            torch.exp(torch.clip(out[..., 9:18], config["rl"]["ppo"]["log_var_min"], config["rl"]["ppo"]["log_var_max"])), # var (clipped to prevent overflow)
+            out[..., 0:9],
+            torch.exp(
+                torch.clamp(out[..., 9:18], config["rl"]["ppo"]["log_std_min"], config["rl"]["ppo"]["log_std_max"])
+            ),
         )
         
     
@@ -60,13 +62,13 @@ class Actor(nn.Module):
             torch.Tensor: GAE advantages
         """
         # Compute TD residuals
-        td_residuals: torch.Tensor = rewards + config["rl"]["ppo"]["discount_factor"] * (1 - dones[1:]) * value_outs[1:, ...] - value_outs[:-1, ...]
+        td_residuals: torch.Tensor = rewards + config["rl"]["ppo"]["discount_factor"] * (1 - dones) * value_outs[1:, ...] - value_outs[:-1, ...]
         # Compute advantages
-        advantages: torch.Tensor = torch.zeros_like(dones) # T+1
-        for t in reversed(range(td_residuals.size(0))):
-            advantages[t, ...] = td_residuals[t, ...] + config["rl"]["ppo"]["discount_factor"] * config["rl"]["ppo"]["gae_decay"] * (1 - dones[t+1, ...]) * advantages[t+1, ...]
+        advantages: torch.Tensor = torch.zeros_like(rewards) # T+1
+        for t in reversed(range(td_residuals.size(0) - 1)):
+            advantages[t, ...] = td_residuals[t, ...] + config["rl"]["ppo"]["discount_factor"] * config["rl"]["ppo"]["gae_decay"] * (1 - dones[t, ...]) * advantages[t, ...]
         
-        return advantages[:-1, ...]
+        return advantages
     
     
     @classmethod
@@ -99,12 +101,10 @@ class Actor(nn.Module):
             advantages * policy_ratio,
             advantages * torch.clip(
                 policy_ratio,
-                1 + config["rl"]["ppo"]["clipping_param"],
                 1 - config["rl"]["ppo"]["clipping_param"],
+                1 + config["rl"]["ppo"]["clipping_param"],
             ),
         )
-        print((torch.sum(policy_dist.log_prob(actions), dim=2) - torch.sum(old_policy_dist.log_prob(actions).detach(), dim=2)).mean(), advantages.mean())
-        # Final loss includes entropy
         return policy_objecive.mean()
     
     
@@ -137,7 +137,7 @@ class Critic(nn.Module):
             torch.Tensor: Expected value
         """
         out: torch.Tensor = self.net(obs,)
-        # Split last dimension into mean/logvar
+        # Split last dimension into mean/logstd
         return out.squeeze(1)
     
     

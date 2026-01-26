@@ -38,18 +38,27 @@ class SceneCfg(InteractiveSceneCfg):
             pos=(0.0, 0.0, 0.0,),
         ),
     )
+    robot.actuators["panda_shoulder"].stiffness = 0.0
+    robot.actuators["panda_shoulder"].damping = 0.0
+    robot.actuators["panda_forearm"].stiffness = 0.0
+    robot.actuators["panda_forearm"].damping = 0.0
+    robot.spawn.rigid_props.disable_gravity = True
+    
     # Cube
     # Object to grasp
-    cube: AssetBaseCfg = AssetBaseCfg(
+    cube: RigidObjectCfg = RigidObjectCfg(
         prim_path="{ENV_REGEX_NS}/Cube",
         spawn=sim_utils.CuboidCfg(
             size=tuple(config["scene"]["cube"]["size"]),
             collision_props=sim_utils.CollisionPropertiesCfg(),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(config["scene"]["cube"]["diffuse_color"])),
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                kinematic_enabled=False,
+                disable_gravity=False,
+            ),
             activate_contact_sensors=True,
         ),
-        init_state=AssetBaseCfg.InitialStateCfg(
+        init_state=RigidObjectCfg.InitialStateCfg(
             pos=tuple(config["scene"]["cube"]["pos"]),
         ),
     )

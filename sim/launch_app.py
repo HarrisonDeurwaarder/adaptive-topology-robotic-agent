@@ -6,7 +6,7 @@ import argparse
 
 
 def launch_app(
-    *runtime_args: dict[Literal['flag', 'type', 'default', 'help'], str | type | Any],
+    *runtime_args: dict[Literal["flag", "type", "default", "help"], str | type | Any],
     **static_args: Any
 ) -> tuple[SimulationApp, argparse.Namespace]:
     """
@@ -22,7 +22,7 @@ def launch_app(
             - args_cli: Arguments passed
     """
     # Define the argument parser
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="PEARL agent with adaptive robotic topologies")
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(description="Object manipulation policy using the Franka Panda")
     # Handle runtime args
     for arg in runtime_args:
         parser.add_argument(

@@ -46,9 +46,13 @@ This repository shows a simple object manipulation policy using the Franka Emika
 
 ## Scripts
 - The following will begin training with seed=0
+```text
 python scripts/train.py --seed=0
+```
 - The following will run a trained model with seed=1
+```text
 python scripts/inference.py --seed=1
+```
 - model/ contains all pre-trained models with the format "franka-[SEED].pth"
 All raw configurations are stored at configs/yaml/
 
@@ -59,8 +63,10 @@ Success Condition:
 
 Reward Components:
 - Panda moves closer to cuboid
-- Panda contacts cuboid
-- Panda lifts cuboid (with limit at 1m)
+- Panda lifts cuboid
+- Panda reaches reward condition
+- Penalty on angular velocity
+- Penalty on duration
 
 Termination Conditions:
 - Timeout: Episode exceeds 5 seconds (by default)
