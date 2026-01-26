@@ -2,10 +2,10 @@ env:
   decimation: 1
   episode_length: 5.0 # [sec]
   action_space: 7
-  obs_space: 17
+  obs_space: 18
 
 scene:
-  num_envs: 9
+  num_envs: 1024
   env_spacing: 2.0
   replicate_physics: True
   clone_in_fabric: True
@@ -14,12 +14,8 @@ scene:
     color: [0.75, 0.75, 0.75]
   cube:
     size: [0.2, 0.2, 0.2] # [m]
-    rest_offset: 0.0
-    contact_offset: 0.001
-    poissons_ratio: 0.4
-    youngs_modulus: 1e5
-    diffuse_color: [0.5, 0.5, 0.5]
-    pos: [0.0, 0.0, 1.0]
+    diffuse_color: [1.0, 0.0, 0.0]
+    pos: [0.0, 1.0, 0.0]
 
 sim:
   dt: 0.01
@@ -27,13 +23,16 @@ sim:
 
 rl:
   epochs: 10
-  iterations: 5
+  iterations: 20
   batch_size: 64
-  rollout_length: 1028
+  rollout_length: 128
   ppo:
-    policy_lr: 1e-3
-    value_lr: 1e-3
+    log_var_min: -20.0
+    log_var_max: 2.0
+    policy_lr: 0.001
+    value_lr: 0.001
     value_coef: 0.5
     entropy_coef: 0.005
-    discount_factor: 0
-    gae_decay: 0
+    discount_factor: 0.99
+    gae_decay: 0.98
+    clipping_param: 0.2

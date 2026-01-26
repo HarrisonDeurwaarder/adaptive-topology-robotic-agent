@@ -12,9 +12,11 @@ class Actor(nn.Module):
     def __init__(self,) -> None:
         super().__init__()
         self.net: nn.Module = nn.Sequential(
-            nn.Linear(17, 128),
+            nn.Linear(18, 128),
+            nn.Tanh(),
             nn.Linear(128, 128),
-            nn.Linear(128, 14),
+            nn.Tanh(),
+            nn.Linear(128, 18),
         )
         
         
@@ -33,7 +35,10 @@ class Actor(nn.Module):
         """
         out = self.net(obs,)
         # Split last dimension into mean/logvar
-        return out[..., 0], torch.exp(out[..., 1])
+        return (
+            out[..., 0:9], # mean
+            torch.exp(torch.clip(out[..., 9:18], config["rl"]["ppo"]["log_var_min"], config["rl"]["ppo"]["log_var_max"])), # var (clipped to prevent overflow)
+        )
         
     
     @classmethod
@@ -55,13 +60,13 @@ class Actor(nn.Module):
             torch.Tensor: GAE advantages
         """
         # Compute TD residuals
-        td_residuals: torch.Tensor = rewards + value_outs[1:, ...] * config["rl"]["ppo"]["discount_factor"] - value_outs[:-1, ...]
+        td_residuals: torch.Tensor = rewards + config["rl"]["ppo"]["discount_factor"] * (1 - dones[1:]) * value_outs[1:, ...] - value_outs[:-1, ...]
         # Compute advantages
-        advantages: torch.Tensor = torch.zeros_like(rewards)
-        for t in reversed(range(td_residuals.size(-1) - 1)):
-            advantages[t] = td_residuals[..., t] + config["rl"]["ppo"]["discount_factor"] * config["rl"]["ppo"]["gae_decay"] * (1 - dones[..., t+1]) * advantages[..., t+1]
+        advantages: torch.Tensor = torch.zeros_like(dones) # T+1
+        for t in reversed(range(td_residuals.size(0))):
+            advantages[t, ...] = td_residuals[t, ...] + config["rl"]["ppo"]["discount_factor"] * config["rl"]["ppo"]["gae_decay"] * (1 - dones[t+1, ...]) * advantages[t+1, ...]
         
-        return advantages
+        return advantages[:-1, ...]
     
     
     @classmethod
@@ -84,8 +89,11 @@ class Actor(nn.Module):
         Returns:
             tuple[torch.Tensor, torch.Tensor]: a tuple containing the distribution parameters
         """
+        advantages = advantages.detach()
         # Compute policy ratio of selected action
-        policy_ratio: torch.Tensor = torch.exp(policy_dist.log_prob(actions) - old_policy_dist.log_prob(actions))
+        policy_ratio: torch.Tensor = torch.exp(
+            torch.sum(policy_dist.log_prob(actions), dim=2) - torch.sum(old_policy_dist.log_prob(actions).detach(), dim=2),
+        )
         # Apply ratio scaling
         policy_objecive: torch.Tensor = torch.minimum(
             advantages * policy_ratio,
@@ -95,8 +103,9 @@ class Actor(nn.Module):
                 1 - config["rl"]["ppo"]["clipping_param"],
             ),
         )
+        print((torch.sum(policy_dist.log_prob(actions), dim=2) - torch.sum(old_policy_dist.log_prob(actions).detach(), dim=2)).mean(), advantages.mean())
         # Final loss includes entropy
-        return policy_objecive
+        return policy_objecive.mean()
     
     
 class Critic(nn.Module):
@@ -106,8 +115,10 @@ class Critic(nn.Module):
     def __init__(self,) -> None:
         super().__init__()
         self.net: nn.Module = nn.Sequential(
-            nn.Linear(17, 128),
+            nn.Linear(18, 128),
+            nn.Tanh(),
             nn.Linear(128, 128),
+            nn.Tanh(),
             nn.Linear(128, 1),
         )
         
@@ -127,25 +138,26 @@ class Critic(nn.Module):
         """
         out: torch.Tensor = self.net(obs,)
         # Split last dimension into mean/logvar
-        return out[..., 0], torch.exp(out[..., 1])
+        return out.squeeze(1)
     
     
     @classmethod
-    def value_objective(
+    def value_loss(
+        cls,
         value_outs: torch.Tensor,
         old_value_outs: torch.Tensor,
         advantages: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Computes the value objective for PPO
+        Computes the value loss for PPO
 
         Args:
-            critic_out (torch.Tensor): Predicted value of the policy
-            old_critic_out (torch.Tensor): Old predicted value
+            value_outs (torch.Tensor): Predicted value of the policy
+            old_value_outs (torch.Tensor): Old predicted value
             advantages (torch.Tensor): GAE advantages
 
         Returns:
-            torch.Tensor: Value objective
+            torch.Tensor: Value loss
         """
         return F.mse_loss(
             value_outs,

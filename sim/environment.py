@@ -6,7 +6,7 @@ from isaaclab.utils import configclass
 from isaaclab.sim import SimulationCfg
 
 from configs.python.scene_cfg import SceneCfg
-from configs.python.env_cfg import EnvCfg
+from configs.python.env_cfg import EnvironmentCfg
 
 
 class Environment(DirectRLEnv):
@@ -14,10 +14,10 @@ class Environment(DirectRLEnv):
     RL Environment
     """
     def __init__(self,) -> None:
-        super.__init__(EnvCfg(), None)
+        super().__init__(EnvironmentCfg(), None)
         # Get robot from scene
         self.robot = self.scene["robot"]
-        self.contact_forces = self.scene["contact_sensor"]
+        #self.contact_forces = self.scene["contact_sensor"]
         
     
     def _step_impl(
@@ -46,15 +46,29 @@ class Environment(DirectRLEnv):
         )
         
         
+    def _pre_physics_step(
+        self,
+        actions: torch.Tensor,
+    ) -> None:
+        """
+        Prepares the actions before the decimated physics loop
+
+        Args:
+            actions (torch.Tensor): joint efforts
+        """
+        self.actions = actions
+        
+        
     def _apply_action(self,) -> None:
         """
         Apply actions in physics loop, [decimation] times
         """
         # Write plain joint efforts
-        self.robot.set_joint_effort(
+        self.robot.set_joint_effort_target(
             self.actions,
             joint_ids=...,
         )
+        self.robot.write_data_to_sim()
         
     
     def _get_observations(self,) -> torch.Tensor:
@@ -68,12 +82,12 @@ class Environment(DirectRLEnv):
         joint_pos: torch.Tensor = self.robot.data.joint_pos
         joint_vel: torch.Tensor = self.robot.data.joint_vel
         # Get end-effector contact forces
-        contact_forces: torch.Tensor = self.contact_forces.data.net_forces_w
-        
-        return torch.cat(
-            joint_pos,
-            joint_vel,
-            contact_forces,
+        #contact_forces: torch.Tensor = self.contact_forces.data.net_forces_w
+        return torch.cat((
+                joint_pos,
+                joint_vel,
+                #contact_forces,
+            ),
             dim=1,
         )
     
@@ -85,7 +99,7 @@ class Environment(DirectRLEnv):
         Returns:
             torch.Tensor: Rewards
         """
-        return torch.ones((self.scene.num_envs))
+        return torch.ones((self.scene.num_envs), device=self.device)
         
         
     def _get_dones(self,) -> tuple:
@@ -98,7 +112,7 @@ class Environment(DirectRLEnv):
         # Truncation term
         time_out = self.episode_length_buf >= self.max_episode_length - 1
         # Return both
-        return False, time_out # Termination will be excluded during debugging
+        return torch.full_like(torch.empty(self.num_envs), False, device=self.device), time_out # Termination will be excluded during debugging
     
     
     def _reset_idx(
@@ -111,6 +125,7 @@ class Environment(DirectRLEnv):
         Args:
             env_ids (Sequence[int] | None): Indicies to reset
         """
+        super()._reset_idx(env_ids)
         # Resolve env ids
         if env_ids is None:
             env_ids = self.robot._ALL_INDICIES

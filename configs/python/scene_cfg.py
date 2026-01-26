@@ -3,7 +3,7 @@ import isaaclab.sim as sim_utils
 
 from isaaclab.assets import ArticulationCfg
 from isaaclab.assets import AssetBaseCfg
-from isaaclab.assets import DeformableObjectCfg
+from isaaclab.assets import RigidObjectCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
@@ -35,39 +35,29 @@ class SceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
         init_state=FRANKA_PANDA_HIGH_PD_CFG.init_state.replace(
-            pos=(0.0, 0.0, 0.0,)
+            pos=(0.0, 0.0, 0.0,),
         ),
-        spawn=sim_utils.UsdFileCfg(
-            usd_path=FRANKA_PANDA_HIGH_PD_CFG.spawn.usd_path,
-            activate_contact_sensors=True,
-        ),
-    )
-    # Conact sensor
-    contact_forces: ContactSensorCfg = ContactSensorCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/robot_hand",
-        update_period=0.0,
-        history_length=5,
-        debug_vis=True,
     )
     # Cube
     # Object to grasp
-    cuboid: sim_utils.MeshCuboidCfg = sim_utils.DeformableObjectCfg(
+    cube: AssetBaseCfg = AssetBaseCfg(
         prim_path="{ENV_REGEX_NS}/Cube",
-        spawn=sim_utils.MeshCuboidCfg(
+        spawn=sim_utils.CuboidCfg(
             size=tuple(config["scene"]["cube"]["size"]),
-            deformable_props=sim_utils.DeformableBodyPropertiesCfg(
-                rest_offset=config["scene"]["cube"]["rest_offset"],
-                contact_offset=config["scene"]["cube"]["contact_offset"],
-            ),
-            physics_material=sim_utils.DeformableBodyMaterialCfg(
-                poissons_ratio=config["scene"]["cube"]["poissons_ratio"],
-                youngs_modulus=config["scene"]["cube"]["youngs_modulus"],
-            ),
-            visual_material=sim_utils.PreviewSurfaceCfg(
-                diffuse_color=tuple(config["scene"]["cube"]["diffuse_color"]),
-            ),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=tuple(config["scene"]["cube"]["diffuse_color"])),
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(kinematic_enabled=True),
+            activate_contact_sensors=True,
         ),
-        init_state=DeformableObjectCfg.InitialStateCfg(
-            pos=config["scene"]["cube"]["pos"],
+        init_state=AssetBaseCfg.InitialStateCfg(
+            pos=tuple(config["scene"]["cube"]["pos"]),
         ),
     )
+    
+'''    # Contact sensor
+    contact_forces: ContactSensorCfg = ContactSensorCfg(
+        prim_path="{ENV_REGEX_NS}/Cube",
+        update_period=0.0,
+        history_length=1,
+        debug_vis=True,
+    )'''

@@ -2,14 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File (project root)",
+            "name": "Python: Current File (Project Root)",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}"
+                "CONDA_DEFAULT_ENV": "env_isaaclab"
             },
             "justMyCode": true,
         }

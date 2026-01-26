@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data.dataset import Dataset
 
+from utils.config import config
+
 
 class Rollout(Dataset):
     """
@@ -15,17 +17,13 @@ class Rollout(Dataset):
     ) -> None:
         super().__init__()
         # Define collectables
-        self.obs: torch.Tensor = torch.tensor(
-            [initial_obs], device=device,
-        )
-        self.actions: torch.Tensor = torch.empty(device=device,)
-        self.means: torch.Tensor = torch.empty(device=device,)
-        self.variances: torch.Tensor = torch.empty(device=device,)
-        self.rewards: torch.Tensor = torch.empty(device=device,)
-        self.value_outs: torch.Tensor = torch.empty(
-            [initial_value_out], device=device,
-        )
-        self.dones: torch.Tensor = torch.empty(device=device,)
+        self.obs: torch.Tensor = initial_obs.unsqueeze(0).to(device=device)
+        self.actions: torch.Tensor = torch.empty(0, device=device,)
+        self.means: torch.Tensor = torch.empty(0, device=device,)
+        self.variances: torch.Tensor = torch.empty(0, device=device,)
+        self.rewards: torch.Tensor = torch.empty(0, device=device,)
+        self.value_outs: torch.Tensor = initial_value_out.unsqueeze(0).to(device=device)
+        self.dones: torch.Tensor = torch.zeros((1, config["scene"]["num_envs"]), device=device,)
         
         
     def __len__(self,) -> int:
@@ -38,12 +36,12 @@ class Rollout(Dataset):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         # Return transition tuple
         return (
-            self.obs[idx],
-            self.actions[idx],
-            self.means[idx],
-            self.variances[idx],
-            self.rewards[idx],
-            self.value_outs[idx],
+            self.obs[idx, ...],
+            self.actions[idx, ...],
+            self.means[idx, ...],
+            self.variances[idx, ...],
+            self.advantages[idx, ...],
+            self.value_outs[idx, ...],
         )
     
     
@@ -86,10 +84,23 @@ class Rollout(Dataset):
             value_out (torch.Tensor): Predicted value of the policy
             dones (torch.Tensor): Boolean completion flags
         """
-        self.obs = torch.concat(self.obs, obs.unsqueeze(0), dim=0)
-        self.actions = torch.concat(self.actions, actions.unsqueeze(0), dim=0)
-        self.means = torch.concat(self.means, means.unsqueeze(0), dim=0)
-        self.variances = torch.concat(self.variances, variances.unsqueeze(0), dim=0)
-        self.rewards = torch.concat(self.rewards, rewards.unsqueeze(0), dim=0)
-        self.value_outs = torch.concat(self.value_outs, value_out.unsqueeze(0), dim=0)
-        self.dones = torch.concat(self.dones, dones.unsqueeze(0), dim=0)
+        self.obs = torch.concat((self.obs, obs.unsqueeze(0)), dim=0)
+        self.actions = torch.concat((self.actions, actions.unsqueeze(0)), dim=0)
+        self.means = torch.concat((self.means, means.unsqueeze(0)), dim=0)
+        self.variances = torch.concat((self.variances, variances.unsqueeze(0)), dim=0)
+        self.rewards = torch.concat((self.rewards, rewards.unsqueeze(0)), dim=0)
+        self.value_outs = torch.concat((self.value_outs, value_out.unsqueeze(0)), dim=0)
+        self.dones = torch.concat((self.dones, dones.unsqueeze(0)), dim=0)
+        
+        
+    def add_advantages(
+        self,
+        advantages: torch.Tensor,
+    ) -> None:
+        """
+        Adds the post-evaluation phase advantages for batching
+
+        Args:
+            advantages (torch.Tensor): GAE advantages
+        """
+        self.advantages = advantages

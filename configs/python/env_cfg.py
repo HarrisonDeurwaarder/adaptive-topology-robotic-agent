@@ -13,14 +13,14 @@ class EnvironmentCfg(DirectRLEnvCfg):
     """
     # Environment config
     decimation: int = config["env"]["decimation"]
-    episode_length: float = config["env"]["episode_length"]
+    episode_length_s: float = config["env"]["episode_length"]
     action_space: int = config["env"]["action_space"]
-    obs_space: int = config["env"]["obs_space"]
+    observation_space: int = config["env"]["obs_space"]
     
     # Simulation config
     sim: SimulationCfg = SimulationCfg(
-        dt=config["scene"]["dt"],
-        render_interval=config["scene"]["render_interval"],
+        dt=config["sim"]["dt"],
+        render_interval=config["sim"]["render_interval"],
     )
     
     # Scene config
