@@ -7,8 +7,9 @@ from isaaclab.assets import RigidObjectCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sensors import ContactSensorCfg
 from isaaclab.utils import configclass
+from isaaclab.sensors import CameraCfg, TiledCameraCfg, ContactSensorCfg
 
-from isaaclab_assets import FRANKA_PANDA_HIGH_PD_CFG
+from isaaclab_assets import FRANKA_PANDA_CFG
 
 from utils.config import config
 
@@ -32,9 +33,9 @@ class SceneCfg(InteractiveSceneCfg):
         ),
     )
     # Robot config
-    robot: ArticulationCfg = FRANKA_PANDA_HIGH_PD_CFG.replace(
+    robot: ArticulationCfg = FRANKA_PANDA_CFG.replace(
         prim_path="{ENV_REGEX_NS}/Robot",
-        init_state=FRANKA_PANDA_HIGH_PD_CFG.init_state.replace(
+        init_state=FRANKA_PANDA_CFG.init_state.replace(
             pos=(0.0, 0.0, 0.0,),
         ),
     )
@@ -63,7 +64,7 @@ class SceneCfg(InteractiveSceneCfg):
         ),
     )
     
-'''    # Contact sensor
+    '''    # Contact sensor
     contact_forces: ContactSensorCfg = ContactSensorCfg(
         prim_path="{ENV_REGEX_NS}/Cube",
         update_period=0.0,

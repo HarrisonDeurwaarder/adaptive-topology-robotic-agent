@@ -51,21 +51,24 @@ def main() -> None:
     )
     
     """ Training Loop """
+    # Initial reset
+    obs: torch.Tensor = env.reset()[0]
+    rollout: Rollout = Rollout(
+        initial_obs=obs,
+        initial_value_out=value(obs,),
+        device=device,
+    )
     # Epoch = num rollouts collected
     for iteration in range(config["rl"]["iterations"]):
         # Rollout collection phase
-        obs: torch.Tensor = env.reset()[0]
-        rollout: Rollout = Rollout(
-            initial_obs=obs,
-            initial_value_out=value(obs,),
-            device=device,
-        )
+        rollout.reset()
         # Loop until rollout is at capacity
         while len(rollout) < config["rl"]["rollout_length"]:
             # Sample action from policy
             mean, std = policy(obs,)
             action: torch.Tensor = Normal(mean, std,).sample()
             # Step in the environment
+            print(action.shape, obs.shape)
             obs, rew, term, trunc, _, = env.step(action,)
             # Add to rollout
             rollout.add(
@@ -116,15 +119,19 @@ def main() -> None:
                 loss: torch.Tensor = -policy_objective + config["rl"]["ppo"]["value_coef"] * value_loss - config["rl"]["ppo"]["entropy_coef"] * policy_dist.entropy().mean()
                 loss.backward()
                 optimizer.step()
+                # Continue scene interaction
+                scene.update(env.physics_dt,)
+                sim_app.update()
                 
         print(
-            "========================================\n",
+            "\n========================================\n",
             f"Iteration #{iteration+1}/{config['rl']['iterations']} Completed:",
             f"\tMean Reward: {rollout.rewards.mean():.2f}",
             f"\tMean Episode Length: {((1 - rollout.dones).sum()) / rollout.dones.sum():.2f}",
             f"\tMean Advantage: {rollout.advantages.mean():.2f}",
             f"\tMean Value Loss: {Critic.value_loss(value(rollout.obs[:-1],).squeeze(2), rollout.value_outs[:-1], rollout.advantages,).mean():.2f}",
-            f"\tMean Policy Objective: {Actor.policy_objective(Normal(*policy(rollout.obs[:-1])), Normal(rollout.means, rollout.stds), rollout.actions, rollout.advantages).mean():.2f}\n",
+            f"\tMean Policy Objective: {Actor.policy_objective(Normal(*policy(rollout.obs[:-1])), Normal(rollout.means, rollout.stds), rollout.actions, rollout.advantages).mean():.2f}",
+            *(f"\tMean Rewards/{key}: {(rewards.mean() / config['rl']['rollout_length']):.2f}" for key, rewards in env._episode_rewards.items()),
             sep="\n",
         )
         

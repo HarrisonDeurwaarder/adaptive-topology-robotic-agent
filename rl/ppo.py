@@ -12,11 +12,11 @@ class Actor(nn.Module):
     def __init__(self,) -> None:
         super().__init__()
         self.net: nn.Module = nn.Sequential(
-            nn.Linear(18, 128),
+            nn.Linear(16, 128),
             nn.Tanh(),
             nn.Linear(128, 128),
             nn.Tanh(),
-            nn.Linear(128, 18),
+            nn.Linear(128, 16),
         )
         
         
@@ -36,9 +36,9 @@ class Actor(nn.Module):
         out = self.net(obs,)
         # Split last dimension into mean/logstd
         return (
-            out[..., 0:9],
+            out[..., 0:8],
             torch.exp(
-                torch.clamp(out[..., 9:18], config["rl"]["ppo"]["log_std_min"], config["rl"]["ppo"]["log_std_max"])
+                torch.clamp(out[..., 8:16], config["rl"]["ppo"]["log_std_min"], config["rl"]["ppo"]["log_std_max"])
             ),
         )
         
@@ -115,7 +115,7 @@ class Critic(nn.Module):
     def __init__(self,) -> None:
         super().__init__()
         self.net: nn.Module = nn.Sequential(
-            nn.Linear(18, 128),
+            nn.Linear(16, 128),
             nn.Tanh(),
             nn.Linear(128, 128),
             nn.Tanh(),

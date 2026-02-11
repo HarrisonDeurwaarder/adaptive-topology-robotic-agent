@@ -5,15 +5,16 @@ env:
   obs_space: 18
   rewards:
     sparse_height_bonus_threshold: 0.30
-    inverse_dist_coef: 1.0
-    orient_alignment_coef: 2.5
-    cube_height_coef: 5.0
+    orient_alignment_coef: 0.25
+    cube_height_coef: 0.0
     sparse_height_bonus_coef: 20.0
-    passive_penalty_coef: -0.01
-    ee_vel_penalty_coef: -0.0
+    ee_prismatic_vel_coef: 0.05
+    cube_z_vel_coef: 1.0
+    dist_penalty_coef: -0.05
+    passive_penalty_coef: -0.0001
 
 scene:
-  num_envs: 1024
+  num_envs: 9
   env_spacing: 2.0
   replicate_physics: True
   clone_in_fabric: True
@@ -24,6 +25,9 @@ scene:
     size: [0.07, 0.07, 0.07] # [m]
     diffuse_color: [1.0, 0.0, 0.0]
     pos: [0.4, 0.0, 0.1]
+  marker:
+    translation: 0.4
+    scale: [0.2, 0.2, 0.6]
 
 sim:
   dt: 0.01
@@ -32,8 +36,8 @@ sim:
 rl:
   epochs: 10
   iterations: 100
-  batch_size: 8
-  rollout_length: 256
+  batch_size: 32
+  rollout_length: 512
   ppo:
     log_std_min: -20.0
     log_std_max: 2.0
